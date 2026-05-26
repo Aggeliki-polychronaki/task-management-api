@@ -1,15 +1,14 @@
 from fastapi import FastAPI
 
+import user_models
 import models
 import database
-from routers import tasks
-
+from routers import tasks, users
 app = FastAPI()
 
 models.Base.metadata.create_all(bind=database.engine)
 
-app.include_router(tasks.router)
-
+app.include_router(users.router)
 
 @app.get("/")
 def root():
