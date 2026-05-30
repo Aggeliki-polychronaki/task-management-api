@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 import database
 import models
+import user_models
 
 from auth import verify_access_token
 
@@ -38,8 +39,17 @@ def get_current_user(
     return email
 
 @router.get("/tasks")
-def get_tasks(db: Session = Depends(get_db)):
-    return db.query(models.Task).all()
+def get_tasks(
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
+    user = db.query(user_models.User).filter(
+        user_models.User.email == current_user
+    ).first()
+
+    return db.query(models.Task).filter(
+        models.Task.user_id == user.id
+    ).all()
 
 
 @router.post("/tasks")
@@ -48,10 +58,15 @@ def create_task(
     db: Session = Depends(get_db),
     current_user: str = Depends(get_current_user)
 ):
+    user = db.query(user_models.User).filter(
+        user_models.User.email == current_user
+    ).first()
+
     new_task = models.Task(
         id=task.id,
         title=task.title,
-        completed=task.completed
+        completed=task.completed,
+        user_id=user.id
     )
 
     db.add(new_task)
