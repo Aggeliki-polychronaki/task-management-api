@@ -1,11 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 import database
 import models
 
+from auth import verify_access_token
+
 router = APIRouter()
+security = HTTPBearer()
 
 
 class Task(BaseModel):
@@ -21,6 +25,17 @@ def get_db():
     finally:
         db.close()
 
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    token = credentials.credentials
+
+    email = verify_access_token(token)
+
+    if email is None:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    return email
 
 @router.get("/tasks")
 def get_tasks(db: Session = Depends(get_db)):
@@ -28,7 +43,11 @@ def get_tasks(db: Session = Depends(get_db)):
 
 
 @router.post("/tasks")
-def create_task(task: Task, db: Session = Depends(get_db)):
+def create_task(
+    task: Task,
+    db: Session = Depends(get_db),
+    current_user: str = Depends(get_current_user)
+):
     new_task = models.Task(
         id=task.id,
         title=task.title,
@@ -69,3 +88,5 @@ def update_task(task_id: int, updated_task: Task, db: Session = Depends(get_db))
     db.refresh(task)
 
     return task
+
+    
